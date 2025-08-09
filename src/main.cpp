@@ -34,8 +34,8 @@
 #endif
 
 #define __VERSION__MAJOR        "0"
-#define __VERSION__MINOR        "5"
-#define __VERSION__PATCH        "1"
+#define __VERSION__MINOR        "6"
+#define __VERSION__PATCH        "0"
 #define __VERSION__PHASE        "alpha"
 #define __LICENSE               "GPLv3"
 
@@ -101,15 +101,21 @@
 
     - Re-add monitor mode
     - Fix lockable behavior and rewrite some of the related code
-    - Fix various some minor issues
+    - Fix various minor issues
 
  >>> 0.5.1-alpha (2025-07-31)
 
     - Better crashpad with stack trace capture
 
- **********************************************************************************/
+ >>> 0.6.0-alpha (2025-08-09)
 
-// #define TEST_MODE
+    - Disconnect server now kills client with config backup before exit
+    - Load/save config from config.json works
+    - Model loading is now per controllers instead per speaker
+    - Ctrl+C handled with config backup before exit
+    - Better network management with now non-blocking recv on client side
+
+ **********************************************************************************/
 
 static struct Initializer {
     Initializer() {
@@ -183,7 +189,6 @@ bool process_args(int argc, char** argv) {
     return true;
 }
 
-#ifndef TEST_MODE
 int main(int argc, char **argv) {
 #ifdef PLATFORM_LINUX
     system("clear");
@@ -205,12 +210,6 @@ int main(int argc, char **argv) {
     CRASHPAD::init();
 #endif
 
-    //Lang::setLang<en_US>();
-    //Lang::setLang<fr_FR>();
-
-    //if (!process_args(argc, argv))
-    //    return EXIT_FAILURE;
-
     X_INPUT::disableInput();
 
     SESSION::coldStart(argc, argv);
@@ -223,97 +222,3 @@ int main(int argc, char **argv) {
 
     return EXIT_SUCCESS;
 }
-#else/*
-#include <iostream>
-#include <unistd.h>
-#include <fcntl.h>
-
-void setNonBlockingInput() {
-    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-}
-
-int main() {
-    setNonBlockingInput();
-    std::cout << "Appuyez sur une touche (Appuyez sur Entrée pour quitter)..." << std::endl;
-
-    while (true) {
-        char c;
-        std::cout << ".\n";
-        if (read(STDIN_FILENO, &c, 1) > 0) {
-            if (c == '\n') { // '\n' correspond à Entrée sur Linux/Mac
-                std::cout << "Touche Entrée détectée ! Fin du programme." << std::endl;
-                break;
-            }
-            std::cout << "Touche pressée : " << c << std::endl;
-        }
-        usleep(100000); // Pause pour ne pas surcharger le CPU
-    }
-
-    return 0;
-}*/
-
-#include <csignal>
-#include <iostream>
-#include <execinfo.h>
-#include <unistd.h>
-#include <cstdlib>
-
-#include <execinfo.h>
-#include <csignal>
-#include <cstdlib>
-#include <unistd.h>
-#include <iostream>
-#include <sstream>
-
-void printStackTrace() {
-    const int max_frames = 64;
-    void* addrlist[max_frames + 1];
-
-    int addrlen = backtrace(addrlist, sizeof(addrlist) / sizeof(void*));
-    if (addrlen == 0) {
-        std::cerr << "  <empty, possibly corrupt>\n";
-        return;
-    }
-
-    char exe_path[1024];
-    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
-    if (len == -1) {
-        perror("readlink");
-        return;
-    }
-    exe_path[len] = '\0';
-
-    for (int i = 1; i < addrlen; ++i) {
-        std::ostringstream cmd;
-        cmd << "addr2line -f -p -e " << exe_path << " " << addrlist[i];
-
-        FILE* fp = popen(cmd.str().c_str(), "r");
-        if (fp) {
-            char buf[1024];
-            while (fgets(buf, sizeof(buf), fp)) {
-                std::cerr << buf;
-            }
-            pclose(fp);
-        }
-    }
-}
-
-void signalHandler(int sig) {
-    std::cerr << "Signal " << sig << " reçu\n";
-    printStackTrace();
-    std::_Exit(EXIT_FAILURE);
-}
-
-int main() {
-    std::signal(SIGSEGV, signalHandler);
-
-    // Provoquer un segfault
-    int* ptr = nullptr;
-    *ptr = 123;
-
-    return 0;
-}
-
-#endif
-

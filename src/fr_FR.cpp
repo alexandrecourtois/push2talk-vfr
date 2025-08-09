@@ -67,4 +67,14 @@ fr_FR::fr_FR(): Lang("fr_FR") {
     setString(T_MSG::REBOOT_IN,                            "Redémarrage dans :");
     setString(T_MSG::LOADING_CONFIG,                       "Chargement de la configuration");
     setString(T_MSG::WRITING_CONFIG,                       "Sauvegarde de la configuration");
+    setString(T_MSG::ERRORS_FOUND,                         "Erreurs trouvées");
+    setString(T_MSG::INVALID_JSON, "JSON invalide");
+    setString(T_MSG::ROOT_MUST_BE_A_PAIR_OBJECT, "La racine doit être un objet de paires {etat -> definition}.");
+    setString(T_MSG::MUST_BE_A_STRING, "doit être une chaîne");
+    setString(T_MSG::MUST_BE_AN_ARRAY_OF_OBJECTS, "doit être un tableau d'objets");
+    setString(T_MSG::MISSING_OR_NON_STRING, "manquant ou pas une chaîne");
+    setString(T_MSG::REGEX_KEYWORDS_INVALID_BASIC_TEST, "regex 'keywords' invalide (test basique)");
+    setString(T_MSG::GOTO_MUST_BE_A_STRING, "'goto' doit être une chaîne");
+    setString(T_MSG::GOTO_WITH_MISSING_PATH, "'goto' paramétré avec $PATH mais aucune valeur 'path' trouvée ailleurs pour valider");
+    setString(T_MSG::GOTO_MISSING_STATE, "'goto' pointe vers un état introuvable");
 }

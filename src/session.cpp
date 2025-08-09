@@ -126,6 +126,16 @@ bool SESSION::__process_args(int argc, char** argv) {
             SESSION::is_monitor = true;
         } else if (arg == "--verbose") {
             SESSION::verbose = true;
+        } else if (arg == "--check-responses") {
+            if (i < argc) {
+                auto json_integrity = TOOLBOX::JSON_Integrity::verify(std::string(argv[i+1]));
+
+                if (!json_integrity.is_ok)
+                    TOOLBOX::JSON_Integrity::printResultOnErrors(json_integrity);
+
+                X_INPUT::enableInput();
+                exit(0);
+            }
         }
         // Traitement des options courtes avec "-"
         else if (arg[0] == '-' && arg.length() > 1 && arg[1] != '-') {

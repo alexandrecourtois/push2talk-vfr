@@ -16,13 +16,14 @@
  *                                                                                               *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "msg.h"
-#include "weather.h"
+#include <msg.h>
+#include <weather.h>
 #include <fstream>
 #include <tools.h>
 #include <xprint.h>
 #include <inputs.h>
 #include <session.h>
+#include <lang.h>
 
 std::string TOOLBOX::removeQuotes(std::string str) {
     str.erase(std::remove(str.begin(), str.end(), '\"'), str.end());
@@ -465,4 +466,174 @@ void TOOLBOX::wait(unsigned int seconds) {
     }
 
     std::cout << "0" << std::endl;
+}
+
+bool TOOLBOX::JSON_Integrity::isString(const nlohmann::json &json, const std::string& key) {
+    auto it = json.find(key);
+    return it == json.end() || it->is_string();
+}
+
+bool TOOLBOX::JSON_Integrity::isObjectArray(const nlohmann::json &json, const std::string &key) {
+    auto it = json.find(key);
+
+    if (it == json.end())
+        return true;
+
+    if (!it->is_array())
+        return false;
+
+    for(auto& el: *it)
+        if (!el.is_object())
+            return false;
+
+    return true;
+}
+
+TOOLBOX::JSON_Integrity::Result TOOLBOX::JSON_Integrity::verify(const std::string &path) {
+    TOOLBOX::JSON_Integrity::Result res{true, {}};
+
+    // 1) Lecture & parsing
+    std::ifstream f(path);
+    if (!f) {
+        res.is_ok = false;
+        res.errors.push_back(lang(T_MSG::UNABLE_TO_OPEN_FILE) + ": " + path);
+        return res;
+    }
+    nlohmann::json root;
+    try { f >> root; }
+    catch (const std::exception& e) {
+        res.is_ok = false;
+        res.errors.push_back(std::string(lang(T_MSG::INVALID_JSON) + ": ") + e.what());
+        return res;
+    }
+
+    if (!root.is_object()) {
+        res.is_ok = false;
+        res.errors.push_back(lang(T_MSG::ROOT_MUST_BE_A_PAIR_OBJECT));
+        return res;
+    }
+
+    // 2) Collecte des noms d’états existants
+    std::unordered_set<std::string> states;
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        if (!it.value().is_object()) {
+            res.is_ok = false;
+            res.errors.push_back("Etat \"" + it.key() + "\" n’a pas une définition objet.");
+        } else {
+            states.insert(it.key());
+        }
+    }
+
+    // 3) Collecte des valeurs possibles de PATH (depuis les cibles qui définissent "path")
+    //    Exemple dans ton fichier: sous >INTRO, certaines targets posent "path":"TOUR_DE_PISTE"/"VOL_LOCAL_OU_DEST". :contentReference[oaicite:1]{index=1}
+    std::unordered_set<std::string> pathValues;
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        const nlohmann::json& def = it.value();
+        auto tit = def.find("targets");
+        if (tit != def.end() && tit->is_array()) {
+            for (const auto& tgt : *tit) {
+                if (tgt.is_object()) {
+                    auto pit = tgt.find("path");
+                    if (pit != tgt.end() && pit->is_string()) {
+                        pathValues.insert(pit->get<std::string>());
+                    }
+                }
+            }
+        }
+    }
+
+    // 4) Validation des champs standards & des cibles
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        const std::string stateName = it.key();
+        const nlohmann::json& def = it.value();
+
+        // Champs simples: phrase, audio, repeat, readback (tous optionnels sauf qu’ils doivent être string s’ils existent)
+        if (!isString(def, "phrase"))
+            res.errors.push_back(stateName + ": 'phrase' " + lang(T_MSG::MUST_BE_A_STRING) + ".");
+        if (!isString(def, "audio"))
+            res.errors.push_back(stateName + ": 'audio' " + lang(T_MSG::MUST_BE_A_STRING) + ".");
+        if (!isString(def, "repeat"))
+            res.errors.push_back(stateName + ": 'repeat' " + lang(T_MSG::MUST_BE_A_STRING) + ".");
+        if (!isString(def, "readback"))
+            res.errors.push_back(stateName + ": 'readback' " + lang(T_MSG::MUST_BE_A_STRING) + ".");
+
+        // targets : tableau d’objets { keywords: string, goto: string, ... }
+        if (!isObjectArray(def, "targets")) {
+            res.errors.push_back(stateName + ": 'targets' " + lang(T_MSG::MUST_BE_AN_ARRAY_OF_OBJECTS) + ".");
+            continue;
+        }
+
+        auto tit = def.find("targets");
+        if (tit != def.end() && tit->is_array()) {
+            for (size_t i = 0; i < tit->size(); ++i) {
+                const nlohmann::json& tgt = (*tit)[i];
+
+                // keywords : requis (string)
+                if (!tgt.contains("keywords") || !tgt["keywords"].is_string()) {
+                    res.errors.push_back(stateName + " -> targets[" + std::to_string(i) + "]: 'keywords' " + lang(T_MSG::MISSING_OR_NON_STRING) +".");
+                } else {
+                    // Sanity check sur l’expression (optionnel) : on vérifie juste que la regex peut se compiler
+                    try {
+                        // Remplace '&' par lookahead simple pour tester la validité globale
+                        // (le moteur réel peut être différent, on fait un test basique)
+                        std::string rx = tgt["keywords"].get<std::string>();
+                        std::string rxTest = std::regex_replace(rx, std::regex("&"), ".*");
+                        std::regex re(rxTest, std::regex::icase);
+                        (void)re;
+                    } catch (...) {
+                        res.errors.push_back(stateName + " -> targets[" + std::to_string(i) + "]: " + lang(T_MSG::REGEX_KEYWORDS_INVALID_BASIC_TEST) + ".");
+                    }
+                }
+
+                // goto : requis si présent; il peut contenir _$PATH (ex. >ALIGNE_PRET_DEPART_$PATH) :contentReference[oaicite:2]{index=2}
+                if (tgt.contains("goto")) {
+                    if (!tgt["goto"].is_string()) {
+                        res.errors.push_back(stateName + " -> targets[" + std::to_string(i) + "]: " + lang(T_MSG::GOTO_MUST_BE_A_STRING) + ".");
+                    } else {
+                        std::string dest = tgt["goto"].get<std::string>();
+                        bool okGoto = false;
+
+                        if (dest.find("$PATH") == std::string::npos) {
+                            // goto direct : doit exister
+                            okGoto = states.count(dest) > 0;
+                        } else {
+                            // goto paramétré : on valide contre les valeurs connues de PATH, ou au moins une correspondance
+                            if (pathValues.empty()) {
+                                // S’il n’y a aucune valeur connue, on tolère mais on le signale
+                                res.errors.push_back(stateName + " -> targets[" + std::to_string(i) + "]: " + lang(T_MSG::GOTO_WITH_MISSING_PATH) + ".");
+                                okGoto = true; // tolérance
+                            } else {
+                                size_t okCount = 0;
+                                for (const auto& pv : pathValues) {
+                                    std::string candidate = dest;
+                                    // Remplacement simple
+                                    size_t pos = 0;
+                                    while ((pos = candidate.find("$PATH", pos)) != std::string::npos) {
+                                        candidate.replace(pos, 5, pv);
+                                        pos += pv.size();
+                                    }
+                                    if (states.count(candidate)) okCount++;
+                                }
+                                okGoto = okCount > 0;
+                            }
+                        }
+
+                        if (!okGoto) {
+                            res.errors.push_back(stateName + " -> targets[" + std::to_string(i) + "]: " + lang(T_MSG::GOTO_MISSING_STATE) + ": " + dest);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (!res.errors.empty()) res.is_ok = false;
+    return res;
+}
+
+void TOOLBOX::JSON_Integrity::printResultOnErrors(const Result &result) {
+    X_OUTPUT::xprint(MSG_STYLE::M_ERROR, lang(T_MSG::ERRORS_FOUND) + ": " + std::to_string(result.errors.size()));
+
+    for (auto& e: result.errors)
+        X_OUTPUT::xprint(MSG_STYLE::M_ERROR, e);
 }

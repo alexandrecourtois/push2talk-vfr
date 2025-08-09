@@ -16,45 +16,65 @@
  *                                                                                               *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "msg.h"
+#include <msg.h>
 #include <en_US.h>
 
 en_US::en_US(): Lang("en_US") {
-    setString(T_MSG::GET_HELP,					"Type \"cmd_help\" to get help");
-    setString(T_MSG::FAKE_SERVER_ENABLED, 		"FAKE SERVER ENABLED OVERRIDE IP ADDRESS");
-    setString(T_MSG::DISABLE, 					"Disable");
-    setString(T_MSG::GOODBYE, 					"Good bye !");
-    setString(T_MSG::CONNECTING_TO_XPLANE, 		"Connecting to X-Plane");
-    setString(T_MSG::WAITING_FOR_AIRCRAFT, 		"Waiting for aircraft");
-    setString(T_MSG::DONE, 						"done");
-    setString(T_MSG::LANGUAGE_SET_TO, 			"Language set to");
-    setString(T_MSG::LOADING_AIRPORTS, 			"Loading JSON airports");
-    setString(T_MSG::LOADING_DIALOG, 			"Loading JSON dialog tree");
-    setString(T_MSG::CREATING_SERVER, 			"Creating server");
-    setString(T_MSG::CREATING_CLIENT,			"Creating client");
-    setString(T_MSG::AIRPORTS_FOUND,				"airports found");
-    setString(T_MSG::INITIALIZING_VOSK,			"Initializing Vosk");
-    setString(T_MSG::LISTING_AVAILABLE_DEVICES,	"Listing available devices");
-    setString(T_MSG::NO_DEVICE_FOUND, 			"No device found");
-    setString(T_MSG::UNKNOWN_NAME, 				"Unknown name");
-    setString(T_MSG::UNABLE_TO_OPEN_JOYSTICK,	"Unable to open joystick");
-    setString(T_MSG::SELECTING_DEVICE, 			"Selecting device");
-    setString(T_MSG::PRESS_ANY_BUTTON_ON_DEVICE, "Press any button on device");
-    setString(T_MSG::LOADING_AUDIO_FILES, 		"Loading audio files");
-    setString(T_MSG::LOADING_PHRASES, 			"Loading phrase file");
-    setString(T_MSG::UNABLE_TO_OPEN_FILE, 		"Unable to open file");
-    setString(T_MSG::MISFORMATTED_LINE, 			"Misformatted line");
-    setString(T_MSG::NO_WAV_FILES_IN_DIRECTORY, 	"No WAV files in directory");
-    setString(T_MSG::LOADING_ERROR, 				"Error loading");
-    setString(T_MSG::ANALYZING, 					"Analyzing");
-    setString(T_MSG::RECORDING,					"Recording... Press Enter to stop");
+    setString(T_MSG::GET_HELP,						        "Type \"cmd_help\" for help");
+    setString(T_MSG::FAKE_SERVER_ENABLED,			        "SANDBOX MODE");
+    setString(T_MSG::DISABLE,						        "Disable");
+    setString(T_MSG::GOODBYE,						        "Goodbye!");
+    setString(T_MSG::CONNECTING_TO_XPLANE, 		        "Connecting to X-Plane");
+    setString(T_MSG::WAITING_FOR_AIRCRAFT, 		        "Detecting aircraft");
+    setString(T_MSG::DONE, 						        "done");
+    setString(T_MSG::LANGUAGE_SET_TO, 				        "Language selected");
+    setString(T_MSG::LOADING_AIRPORTS, 			        "Loading airports");
+    setString(T_MSG::LOADING_DIALOG, 				        "Loading dialogs");
+    setString(T_MSG::CREATING_SERVER, 				        "Starting server");
+    setString(T_MSG::CREATING_CLIENT, 				        "Starting client");
+    setString(T_MSG::AIRPORTS_FOUND, 				        "airports found");
+    setString(T_MSG::INITIALIZING_VOSK,			        "Initializing Vosk");
+    setString(T_MSG::LISTING_AVAILABLE_DEVICES,	        "Searching for compatible devices");
+    setString(T_MSG::NO_DEVICE_FOUND, 				        "No device found");
+    setString(T_MSG::UNKNOWN_NAME, 				        "Unknown name");
+    setString(T_MSG::UNABLE_TO_OPEN_JOYSTICK,		        "Unable to open joystick");
+    setString(T_MSG::SELECTING_DEVICE, 			        "Select a joystick");
+    setString(T_MSG::PRESS_ANY_BUTTON_ON_DEVICE, 	        "Press a joystick button");
+    setString(T_MSG::LOADING_AUDIO_FILES, 		        	"Loading audio files");
+    setString(T_MSG::LOADING_PHRASES, 				        "Loading phrases file");
+    setString(T_MSG::UNABLE_TO_OPEN_FILE, 			        "Unable to open file");
+    setString(T_MSG::MISFORMATTED_LINE, 			        "Malformed line");
+    setString(T_MSG::NO_WAV_FILES_IN_DIRECTORY, 	        "No WAV file in the directory");
+    setString(T_MSG::LOADING_ERROR, 				        "Error loading");
+    setString(T_MSG::ANALYZING, 					        "Analysis");
+    setString(T_MSG::RECORDING, 					        "Recording... Press Enter to stop");
+    setString(T_MSG::SELECT_AUDIO_INPUT,                   "Select an input audio device:");
+    setString(T_MSG::SELECT_AUDIO_OUTPUT,                  "Select an output audio device:");
+    setString(T_MSG::FILES,                                "files");
+    setString(T_MSG::UNABLE_TO_PLAY,                       "Unable to read");
+    setString(T_MSG::MISSING_FILE,                         "Missing file");
+    setString(T_MSG::ERROR_WHILE_INITIALIZING_SDL_AUDIO,   "Error initializing SDL_AUDIO");
+    setString(T_MSG::ERROR_WHILE_ENUMERATING_AUDIO,        "Error while searching for audio devices");
+    setString(T_MSG::UNAMED_AUDIO_DEVICE,                  "Unnamed audio device");
+    setString(T_MSG::INVALID_AUDIO_DEVICE,                 "Invalid audio device");
+    setString(T_MSG::AUDIO_DEVICE_ERROR,                   "Audio device error");
+    setString(T_MSG::FREQ,                                 "Freq");
+    setString(T_MSG::XP11_WARNING,                         "THE WEATHER SETTINGS SHOWN MAY NOT MATCH\n  THE SIMULATOR DATA");
     setString(T_MSG::ACTIVE,                               "ACTIVE");
     setString(T_MSG::INACTIVE,                             "INACTIVE");
-    setString(T_MSG::NO_CTRL_DEFINED,                      "No active controller");
+    setString(T_MSG::NO_CTRL_DEFINED,                      "No controller active");
     setString(T_MSG::CONNECTION_LOST,                      "Server disconnected");
-    setString(T_MSG::REBOOT_IN,                               "Reboot in :");
-    setString(T_MSG::LOADING_CONFIG,                       "Loading config");
-    setString(T_MSG::WRITING_CONFIG,                       "Writing config");
-    setString(T_MSG::SELECT_AUDIO_INPUT,                   "Select input audio device:");
-    setString(T_MSG::SELECT_AUDIO_OUTPUT,                  "Select output audio device:");
+    setString(T_MSG::REBOOT_IN,                            "Restarting in:");
+    setString(T_MSG::LOADING_CONFIG,                       "Loading configuration");
+    setString(T_MSG::WRITING_CONFIG,                       "Saving configuration");
+    setString(T_MSG::ERRORS_FOUND,                         "Errors found");
+    setString(T_MSG::INVALID_JSON, "Invalid JSON");
+    setString(T_MSG::ROOT_MUST_BE_A_PAIR_OBJECT, "The root must be an object of pairs {state -> definition}.");
+    setString(T_MSG::MUST_BE_A_STRING, "must be a string");
+    setString(T_MSG::MUST_BE_AN_ARRAY_OF_OBJECTS, "must be an array of objects");
+    setString(T_MSG::MISSING_OR_NON_STRING, "missing or not a string");
+    setString(T_MSG::REGEX_KEYWORDS_INVALID_BASIC_TEST, "invalid 'keywords' regex (basic test)");
+    setString(T_MSG::GOTO_MUST_BE_A_STRING, "'goto' must be a string");
+    setString(T_MSG::GOTO_WITH_MISSING_PATH, "'goto' set with $PATH but no 'path' value found elsewhere to validate");
+    setString(T_MSG::GOTO_MISSING_STATE, "'goto' points to a missing state");
 }

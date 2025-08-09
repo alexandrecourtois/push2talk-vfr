@@ -26,6 +26,18 @@ private:
     TOOLBOX() = default;
 
 public:
+    struct JSON_Integrity {
+        struct Result {
+            bool is_ok;
+            std::vector<std::string> errors;
+        };
+
+        static bool isString(const nlohmann::json& json, const std::string& key);
+        static bool isObjectArray(const nlohmann::json& json, const std::string& key);
+        static Result verify(const std::string& path);
+        static void printResultOnErrors(const Result& result);
+    };
+
     static std::string removeQuotes(std::string str);
     static std::string removeAnsiSq(const std::string& str);
     static std::string toString(double value, int precision);

@@ -19,6 +19,7 @@
 #include "vosk_api.h"
 #include <msg.h>
 #include <speaker.h>
+#include <string>
 #include <xprint.h>
 #include <callbacks.h>
 #include <session.h>
@@ -479,7 +480,14 @@ void Speaker::setupController(const AIRPORTS::Airport &airport) {
 
         ctrl.call_id = " " + airport.type;
         ctrl.call_id.resize(8, ' ');
-        //ctrl.call_id[7] = ' ';
+
+        auto json_integrity = TOOLBOX::JSON_Integrity::verify(airport.sourceFile);
+
+        if (!json_integrity.is_ok) {
+            TOOLBOX::JSON_Integrity::printResultOnErrors(json_integrity);
+            SESSION::hardShutdown();
+            return;
+        }
 
         ctrl.dialog = TOOLBOX::loadJSON(airport.sourceFile);
         ctrl.curr_node = ">ROOT";

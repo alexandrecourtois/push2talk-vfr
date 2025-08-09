@@ -17,11 +17,19 @@ endif()
 
 file(GLOB SRC_FILES "src/*.cpp")
 
+add_library(cereal_headers INTERFACE)
+
+target_include_directories(cereal_headers INTERFACE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/include/third_party
+  /opt/vosk-api/src
+)
+
 if(PLATFORM STREQUAL "Linux")
 add_executable(push2talk-vfr ${SRC_FILES})
-add_subdirectory("plugin")
-target_include_directories(push2talk-vfr PRIVATE /opt/vosk-api/src include include/third_party)
-target_link_libraries(push2talk-vfr PRIVATE /opt/vosk-api/src/libvosk.so zmq SDL2 SDL2_mixer curl unwind)
+add_subdirectory(${CMAKE_SOURCE_DIR}/plugin)
+# target_include_directories(push2talk-vfr PRIVATE /opt/vosk-api/src ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/include/third_party)
+target_link_libraries(push2talk-vfr PRIVATE cereal_headers /opt/vosk-api/src/libvosk.so zmq SDL2 SDL2_mixer curl unwind)
 endif()
 
 if(PLATFORM STREQUAL "Windows")
@@ -29,7 +37,7 @@ add_executable(push2talk-vfr "src/main.cpp" ${SRC_FILES})
 add_definitions(-DSDL_MAIN_HANDLED -DZMQ_STATIC -DCURL_STATICLIB)
 set(LIBZMQ_DIR "${CMAKE_SOURCE_DIR}/libs")
 #target_compile_definitions(push2talk-vfr PRIVATE ZMQ_DLL)
-target_include_directories(push2talk-vfr PRIVATE include include/third_party)
+#target_include_directories(push2talk-vfr PRIVATE include include/third_party)
 target_link_directories(push2talk-vfr PRIVATE libs)
-target_link_libraries(push2talk-vfr PRIVATE Threads::Threads -Wl,-Bdynamic vosk curl -Wl,-Bstatic zmq SDL2 SDL2_mixer sodium ssp ole32 oleaut32 gdi32 ws2_32 winmm cfgmgr32 imm32 version setupapi iphlpapi)
+target_link_libraries(push2talk-vfr PRIVATE cereal_headers Threads -Wl,-Bdynamic vosk curl -Wl,-Bstatic zmq SDL2 SDL2_mixer sodium ssp ole32 oleaut32 gdi32 ws2_32 winmm cfgmgr32 imm32 version setupapi iphlpapi)
 endif()

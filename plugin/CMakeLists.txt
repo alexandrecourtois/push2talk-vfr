@@ -23,7 +23,7 @@ else()
     set_target_properties(XPLM_64_lib PROPERTIES IMPORTED_LOCATION "/home/alexandre/Prog/push2talk-vfr/libs/XPLM_64.so")
 endif()
 
-target_link_libraries(push2talk-vfr_plugin PRIVATE zmq XPLM_64_lib /opt/vosk-api/src/libvosk.so SDL2 SDL2_mixer curl unwind)
+target_link_libraries(push2talk-vfr_plugin PRIVATE cereal_headers XPLM_64_lib /opt/vosk-api/src/libvosk.so SDL2 SDL2_mixer curl unwind)
 
 if (TARGET_XP11)
     target_compile_definitions(push2talk-vfr_plugin PRIVATE TARGET_XP11 APL=3 PLATFORM_LINUX=1)

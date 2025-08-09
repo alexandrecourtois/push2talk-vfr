@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "third_party/cereal/archives/binary.hpp"
+#include <cereal/archives/binary.hpp>
 #include <pch.h>
 #include <enums.h>
 #include <lockable.h>

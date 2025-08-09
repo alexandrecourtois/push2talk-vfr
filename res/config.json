@@ -1,0 +1,11 @@
+{
+    "Models": {
+            "fr_FR": "vosk-model-small-fr-0.22",
+            "fr_FRxxl": "vosk-model-fr-0.22"
+    },
+    "DeviceAudio_Input": "Family 17h/19h HD Audio Controller Digital Microphone",
+    "DeviceAudio_Output": "Family 17h/19h HD Audio Controller Speaker + Headphones",
+    "Lang": "fr_FR",
+    "PTT_Button": "",
+    "PTT_Device": ""
+}

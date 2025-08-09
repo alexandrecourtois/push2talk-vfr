@@ -1,0 +1,104 @@
+{
+    ">ROOT": {
+        "targets"      : [
+            { "keywords": "bonjour|bonsoir", "goto": ">INTRO" }
+        ]
+    },
+    ">MISCOPY": {
+        "phrase": "Je ne suis pas sûr de comprendre. Pouvez-vous reformuler ?",
+        "audio": "[pas_compris]"
+    },
+    ">INTRO": {
+        "phrase"    : "{TAILNUM} Bonjour, quelles sont vos intentions ?",
+        "audio"     : "[demande_intentions]",
+        "targets": [
+            { "keywords": "(tour|tours)&(piste|pistes)&(parking|parkings)", "goto": ">PARAMETRES", "path": "TOUR_DE_PISTE" },
+            { "keywords": "(parking|parkings)&(vol|vols|vole|volent)", "goto": ">PARAMETRES", "path": "VOL_LOCAL_OU_DEST" },
+            { "keywords": "(vertical|verticale|approche)&(installation|installations)&touché", "goto": ">APPROCHE_TOUCHE" },
+            { "keywords": "(vertical|verticale|approche)&(installation|installations)&complet", "goto": ">APPROCHE_COMPLET" }
+        ]
+    },
+    ">PARAMETRES": {
+        "phrase"    : "{TAILNUM} Visibilité {VISIBILITY}, QNH {QNH}, vent du {WINDDIR} {WINDSPEED} noeuds, piste en service {RUNWAY}. Rappelez au point d'attente {HOLDPOINT}",
+        "audio"     : "[paramètres],[rappelez_pt_attente]",
+        "repeat"    : "répéter|répétez|répété",
+        "readback"  : "(rappel|rappelle)&point&attente",
+        "targets": [
+            { "keywords": "remonte", "goto": ">POINT_ATTENTE" }
+        ]
+    },
+    ">POINT_ATTENTE": {
+        "phrase"    : "{TAILNUM} Rappelez aligné prêt au départ",
+        "audio"     : "[rappelez_prêt_départ]",
+        "readback"  : "(rappel|rappelle)&aligné&prêt&départ",
+        "targets": [
+            { "keywords": "aligné&prêt&départ", "goto": ">ALIGNE_PRET_DEPART_$PATH" }
+        ]
+    },
+    ">ALIGNE_PRET_DEPART_TOUR_DE_PISTE": {
+        "phrase"    : "{TAILNUM} vent du {WINDDIR} {WINDSPEED} noeuds, rappelez en vent arrière",
+        "audio"     : "[paramètres_départ],[rappelez_vent_arrière]",
+        "readback"  : "(rappel|rappelle)&vent&arrière",
+        "targets": [
+            { "keywords": "vent&arrière&complet", "goto": ">VENT_ARRIERE_COMPLET" },
+            { "keywords": "vent&arrière&(touché|toucher)", "goto": ">VENT_ARRIERE_TOUCHE" }
+        ]
+    },
+    ">ALIGNE_PRET_DEPART_VOL_LOCAL_OU_DEST": {
+        "phrase"    : "{TAILNUM} vent du {WINDDIR} {WINDSPEED} noeuds, rappelez pour quitter la fréquence",
+        "audio"     : "[paramètres_départ],[rappelez_quitter]",
+        "readback"  : "(rappel|rappelle)&(quitter|quitte|kit)&(fréquence|fréquences)",
+        "targets": [
+            { "keywords": "(quitte|kit)&(fréquence|fréquences)", "goto": ">PISTE_DEGAGEE" }
+        ]
+    },
+    ">VENT_ARRIERE_COMPLET": {
+        "phrase"    : "{TAILNUM} rappelez en finale",
+        "audio"     : "[rappelez_finale]",
+        "readback"  : "(rappel|rappelle)&(final|finale)",
+        "targets": [
+            { "keywords": "finale|final", "goto": ">FINALE_COMPLET" }
+        ]
+    },
+    ">VENT_ARRIERE_TOUCHE": {
+        "phrase"    : "{TAILNUM} rappelez en finale",
+        "audio"     : "[rappelez_finale]",
+        "readback"  : "(rappel|rappelle)&(final|finale)",
+        "targets": [
+            { "keywords": "finale|final", "goto": ">ALIGNE_PRET_DEPART" }
+        ]
+    },
+    ">FINALE_COMPLET": {
+        "phrase"    : "{TAILNUM} Vent du {WINDDIR} {WINDSPEED} noeuds, rappelez piste dégagée",
+        "audio"     : "[paramètres_départ],[rappelez_piste_dégagée]",
+        "readback"  : "(rappel|rappelle)&(piste|pistes)&(dégagée|dégagé|dégager)",
+        "targets": [
+            { "keywords": "piste&(dégagé|dégagée|dégager)", "goto": ">PISTE_DEGAGEE" }
+        ]
+    },
+    ">PISTE_DEGAGEE": {
+        "phrase"    : "{TAILNUM} Au revoir, bonne journée",
+        "audio"     : "[bien_reçu_bonne_journée]",
+        "targets": [
+            { "keywords": "revoir|bonne|journée|soirée", "goto": ">ROOT" }
+        ]
+    },
+    ">APPROCHE_TOUCHE": {
+        "phrase"    : "{TAILNUM} Visibilité {VISIBILITY}, QNH {QNH}, vent du {WINDDIR} {WINDSPEED} noeuds, piste en service {RUNWAY}. Rappelez en vent arrière",
+        "audio"     : "[paramètres],[rappelez_vent_arrière]",
+        "readback"  : "(rappel|rappelle)&vent&arrière",
+        "targets": [
+            { "keywords": "vent&arrière", "goto": ">VENT_ARRIERE_TOUCHE" },
+            { "keywords": "vent&arrière&complet", "goto": ">VENT_ARRIERE_COMPLET" }
+        ]
+    },
+    ">APPROCHE_COMPLET": {
+        "phrase"    : "{TAILNUM} Visibilité {VISIBILITY}, QNH {QNH}, vent du {WINDDIR} {WINDSPEED} noeuds, piste en service {RUNWAY}. Rappelez en vent arrière",
+        "audio"     : "[paramètres],[rappelez_vent_arrière]",
+        "readback"  : "(rappel|rappelle)&vent&arrière",
+        "targets": [
+            { "keywords": "vent&arrière", "goto": ">VENT_ARRIERE_COMPLET" },
+            { "keywords": "vent&arrière&(touché|toucher)", "goto": ">VENT_ARRIERE_TOUCHE" }
+        ]
+    }    
+}

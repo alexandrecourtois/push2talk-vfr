@@ -341,8 +341,8 @@ void SESSION::hotStart() {
         SESSION::client = new ZMQ_Client(SESSION::zmq_context, INPROC_Server("fake_server"));
 
 
-    if (!SESSION::is_monitor)
-        SESSION::agent = Speaker(SESSION::ctrl_id, "vosk-model-small-fr-0.22", "responses_afis_any.json");
+    //if (!SESSION::is_monitor)
+    //    SESSION::agent = Speaker(SESSION::ctrl_id, "vosk-model-small-fr-0.22", "responses_afis_any.json");
 
     connect_xp();
     waitfor_aircraft();

@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "vosk_api.h"
+#include <vosk_api.h>
 #include <airport.h>
 #include <pch.h>
 
@@ -32,6 +32,7 @@ public:
         std::string     prev_node;
         bool            waiting_for_readback;
         std::string     path;
+        std::string     vmodel;
         VoskRecognizer* vrec;
     };
 
@@ -51,7 +52,7 @@ private:
     Controller              __default_ctrl;
 
     void                    __init_vosk(const char* path);
-    VoskRecognizer*         __init_ctrl_vrec(const AIRPORTS::Airport& airport);
+    void                    __init_ctrl_vrec(Controller& ctrl, const AIRPORTS::Airport& airport);
 
     std::set<std::string>   __split_user_input(const std::string& userInput);
     bool                    __evaluate_expression(const std::string& expression, const std::set<std::string>& userWords);
@@ -66,8 +67,9 @@ private:
 
 
 public:
-    Speaker() = default;
-    Speaker(const std::string& callID, const std::string& modelPath, const std::string& dialogPath);
+    //Speaker() = default;
+    //Speaker(const std::string& callID, const std::string& modelPath, const std::string& dialogPath);
+    Speaker();
     ~Speaker();
 
     Speaker& operator=(const Speaker& orig);

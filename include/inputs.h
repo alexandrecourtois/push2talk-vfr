@@ -44,8 +44,8 @@ private:
 public:
     // --- KEYBOARD ---
     static char kbhit(bool in_xscan = false);
-    static void xscan(std::string &str, void (*callback)() = nullptr, int delay = 100);
-    static void xscan();
+    static bool xscan(std::string &str, void (*callback)() = nullptr, int delay = 100);
+    static bool xscan();
     static void xscan_anykey();
     static void enableInput();
     static void disableInput();

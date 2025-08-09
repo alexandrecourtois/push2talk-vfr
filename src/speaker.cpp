@@ -50,7 +50,7 @@ void Speaker::__init_vosk(const char* path) {
     X_OUTPUT::xprint(MSG_STYLE::DONE);
 }
 
-VoskRecognizer* Speaker::__init_ctrl_vrec(const AIRPORTS::Airport& airport) {
+void Speaker::__init_ctrl_vrec(Controller& ctrl, const AIRPORTS::Airport& airport) {
     std::string model_name = SESSION::getConfigList(SESSION::CONFIG_KEYS::CFG_MODELS)[airport.lang];
     
     if (SESSION::vosk_Models.contains(model_name))
@@ -62,7 +62,8 @@ VoskRecognizer* Speaker::__init_ctrl_vrec(const AIRPORTS::Airport& airport) {
         SESSION::vosk_Models[model_name].second = 1;
     }
 
-    return SESSION::vosk_Recognizers[model_name];
+    ctrl.vmodel = model_name;
+    ctrl.vrec = SESSION::vosk_Recognizers[model_name];
 }
 
 std::string Speaker::__replace_keys(const std::string& input) {
@@ -144,11 +145,12 @@ std::set<std::string> Speaker::__split_user_input(const std::string& userInput) 
     return words;
 }
 
-Speaker::Speaker(const std::string& callID, const std::string& modelPath, const std::string& dialogPath): __call_id(callID), __vmodel_name(modelPath) {
-    if (!SESSION::no_audio) {
-        this->__init_vosk(modelPath.c_str());
-    }
+//Speaker::Speaker(const std::string& callID, const std::string& modelPath, const std::string& dialogPath): __call_id(callID), __vmodel_name(modelPath) {
+    //if (!SESSION::no_audio) {
+    //    this->__init_vosk(modelPath.c_str());
+    //}
 
+Speaker::Speaker() {
     std::string json_str = R"({">ROOT":{"targets":[{"keywords":"","goto":">ROOT"}]},">MISCOPY":{"phrase":")" + lang(T_MSG::NO_CTRL_DEFINED) + std::string(R"("}})");
     __default_ctrl.call_id      = " D-CTRL ";
     __default_ctrl.dialog       = nlohmann::json::parse(json_str);
@@ -158,13 +160,16 @@ Speaker::Speaker(const std::string& callID, const std::string& modelPath, const 
 
 Speaker::~Speaker() {
     if (!SESSION::no_audio) {
-        if (SESSION::vosk_Models[this->__vmodel_name].second == 1) {
-            vosk_recognizer_free(this->__vrec);
-            vosk_model_free(this->__vmodel);
-            SESSION::vosk_Models.erase(this->__vmodel_name);
-            SESSION::vosk_Recognizers.erase(this->__vmodel_name);
-        } else {
-            SESSION::vosk_Models[this->__vmodel_name].second--;
+        for(const auto &pair: this->__controllers) {
+            if (pair.second.vrec)
+                if (SESSION::vosk_Models[pair.second.vmodel].second == 1) {
+                    vosk_recognizer_free(pair.second.vrec);
+                    vosk_model_free(SESSION::vosk_Models[pair.second.vmodel].first);
+                    SESSION::vosk_Models.erase(pair.second.vmodel);
+                    SESSION::vosk_Recognizers.erase(pair.second.vmodel);
+                } else {
+                    SESSION::vosk_Models[pair.second.vmodel].second--;
+            }
         }
     }
 }
@@ -340,66 +345,73 @@ std::string Speaker::__get_user_input() {
     SESSION::input_enabled = true;
     X_OUTPUT::xprint(MSG_STYLE::INVITE);
 
+    bool was_xscan_reset;
+
     if (!SESSION::is_monitor)
-        X_INPUT::xscan(input, UPDATER::update);
+        was_xscan_reset = X_INPUT::xscan(input, UPDATER::update);
     else
-        X_INPUT::xscan(input);
+        was_xscan_reset = X_INPUT::xscan(input);
 
-    if (!SESSION::is_monitor) {
-        if (input.empty() && !SESSION::no_audio && RADIO::isPower()) {
-            AUDIO::play(AUDIO::Type::RADIOSTART);
-            AUDIO::startRecording();
+    if (!was_xscan_reset) {
+        if (!SESSION::is_monitor) {
+            if (input.empty() && !SESSION::no_audio && RADIO::isPower()) {
+                AUDIO::play(AUDIO::Type::RADIOSTART);
+                AUDIO::startRecording();
 
-            if (!X_INPUT::ptt_pushed()) {
-                std::cout << BACK_LINE << "> " << std::flush;
-            } else
-                X_INPUT::disableInput();
+                if (!X_INPUT::ptt_pushed()) {
+                    std::cout << BACK_LINE << "> " << std::flush;
+                } else
+                    X_INPUT::disableInput();
 
-            X_OUTPUT::xprint(MSG_STYLE::BLINK_BEGIN, lang(T_MSG::RECORDING));
+                X_OUTPUT::xprint(MSG_STYLE::BLINK_BEGIN, lang(T_MSG::RECORDING));
 
-            if (X_INPUT::ptt_pushed()) {
-                while (X_INPUT::ptt_pushed());
-                X_INPUT::enableInput();
-                std::cout << std::endl;
-            } else
-                X_INPUT::xscan();
+                if (X_INPUT::ptt_pushed()) {
+                    while (X_INPUT::ptt_pushed());
+                    X_INPUT::enableInput();
+                    std::cout << std::endl;
+                } else
+                    X_INPUT::xscan();
 
-            X_OUTPUT::xprint(MSG_STYLE::BLINK_END);
-            X_OUTPUT::xprint(MSG_STYLE::INVITE);
+                X_OUTPUT::xprint(MSG_STYLE::BLINK_END);
+                X_OUTPUT::xprint(MSG_STYLE::INVITE);
 
-            AUDIO::stopRecording();
-            AUDIO::play(AUDIO::Type::RADIOSTOP);
+                AUDIO::stopRecording();
+                AUDIO::play(AUDIO::Type::RADIOSTOP);
 
-            std::cout << lang(T_MSG::ANALYZING) << "... " << std::flush;
+                std::cout << lang(T_MSG::ANALYZING) << "... " << std::flush;
 
-            Controller* ctrl = getController(AIRPORTS::getCurrentAirport().ICAO);
+                Controller* ctrl = getController(AIRPORTS::getCurrentAirport().ICAO);
 
-            vosk_recognizer_accept_waveform(
-                ctrl->vrec,
-                reinterpret_cast<const char *>(AUDIO::getAudioStream().data()),
-                AUDIO::getAudioStream().size());
+                vosk_recognizer_accept_waveform(
+                    ctrl->vrec,
+                    reinterpret_cast<const char *>(AUDIO::getAudioStream().data()),
+                    AUDIO::getAudioStream().size());
 
-            const char *vres = vosk_recognizer_result(ctrl->vrec);
-            std::string userInput(nlohmann::json::parse(vres)["text"]);
+                const char *vres = vosk_recognizer_result(ctrl->vrec);
+                std::string userInput(nlohmann::json::parse(vres)["text"]);
 
-            std::cout << CLEAN_LINE << "> " << std::endl;
+                std::cout << CLEAN_LINE << "> " << std::endl;
 
-            input = userInput;
+                input = userInput;
+            }
         }
-    }
 
-    if (!input.empty()) {
-        std::cout << BACK_LINE << CLEAN_LINE;
+        if (!input.empty()) {
+            std::cout << BACK_LINE << CLEAN_LINE;
 
-        if (!__check_cmd(input)) {
-            if (AIRPORTS::isSupportedAirport())
-                X_OUTPUT::xprint(MSG_STYLE::USER, input);
-            else
-                X_OUTPUT::xprint(MSG_STYLE::USER_ALT, input);
+            if (!__check_cmd(input)) {
+                if (AIRPORTS::isSupportedAirport())
+                    X_OUTPUT::xprint(MSG_STYLE::USER, input);
+                else
+                    X_OUTPUT::xprint(MSG_STYLE::USER_ALT, input);
+            }
         }
-    }
 
-    return input;
+        return input;
+    }
+    else {
+        return std::string();
+    }
 }
 
 bool Speaker::__get_readback(const std::string& readback_keywords) {
@@ -471,7 +483,9 @@ void Speaker::setupController(const AIRPORTS::Airport &airport) {
 
         ctrl.dialog = TOOLBOX::loadJSON(airport.sourceFile);
         ctrl.curr_node = ">ROOT";
-        ctrl.vrec = Speaker::__init_ctrl_vrec(airport);
+        
+        if (!SESSION::no_audio)
+            Speaker::__init_ctrl_vrec(ctrl, airport);
 
         __controllers[airport.ICAO] = ctrl;
 

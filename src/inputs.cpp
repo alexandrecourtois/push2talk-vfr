@@ -155,7 +155,7 @@ bool X_INPUT::__isLastCharacterASCII(const std::string& str) {
     return false;  // Si c'est un octet invalide
 }
 
-void X_INPUT::xscan(std::string &str, void (*callback)(), int delay) {
+bool X_INPUT::xscan(std::string &str, void (*callback)(), int delay) {
     std::string input;
     char ch;
     auto last_time = std::chrono::steady_clock::now();
@@ -233,7 +233,10 @@ void X_INPUT::xscan(std::string &str, void (*callback)(), int delay) {
         std::cout << std::endl;
 
     str = input;
+    bool was_reset = X_INPUT::__reset;
     X_INPUT::__reset = false;
+
+    return was_reset;
 }
 
 void X_INPUT::reset() {
@@ -249,8 +252,8 @@ void X_INPUT::xscan_anykey() {
 #endif
 }
 
-void X_INPUT::xscan() {
-    xscan(__garbage);
+bool X_INPUT::xscan() {
+    return xscan(__garbage);
 }
 
 bool X_INPUT::ptt_changed() {

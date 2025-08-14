@@ -28,8 +28,12 @@ target_include_directories(cereal_headers INTERFACE
 if(PLATFORM STREQUAL "Linux")
 add_executable(push2talk-vfr ${SRC_FILES})
 add_subdirectory(${CMAKE_SOURCE_DIR}/plugin)
+#set_target_properties(push2talk-vfr PROPERTIES
+#  BUILD_RPATH "/home/alexandre/Prog/push2talk-vfr/libs/onnx"
+#  INSTALL_RPATH "/home/alexandre/Prog/push2talk-vfr/libs/onnx"
+#)
 # target_include_directories(push2talk-vfr PRIVATE /opt/vosk-api/src ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/include/third_party)
-target_link_libraries(push2talk-vfr PRIVATE cereal_headers /opt/vosk-api/src/libvosk.so zmq SDL2 SDL2_mixer curl unwind)
+target_link_libraries(push2talk-vfr PRIVATE cereal_headers /opt/vosk-api/src/libvosk.so ${CMAKE_SOURCE_DIR}/libs/libpiper.so sox zmq SDL2 SDL2_mixer curl unwind)
 endif()
 
 if(PLATFORM STREQUAL "Windows")

@@ -77,4 +77,32 @@ en_US::en_US(): Lang("en_US") {
     setString(T_MSG::GOTO_MUST_BE_A_STRING, "'goto' must be a string");
     setString(T_MSG::GOTO_WITH_MISSING_PATH, "'goto' set with $PATH but no 'path' value found elsewhere to validate");
     setString(T_MSG::GOTO_MISSING_STATE, "'goto' points to a missing state");
+    setString(T_MSG::NATO_A, "alpha");
+    setString(T_MSG::NATO_B, "bravo");
+    setString(T_MSG::NATO_C, "charlie");
+    setString(T_MSG::NATO_D, "delta");
+    setString(T_MSG::NATO_E, "echo");
+    setString(T_MSG::NATO_F, "foxtrot");
+    setString(T_MSG::NATO_G, "golf");
+    setString(T_MSG::NATO_H, "hotel");
+    setString(T_MSG::NATO_I, "india");
+    setString(T_MSG::NATO_J, "juliett");
+    setString(T_MSG::NATO_K, "kilo");
+    setString(T_MSG::NATO_L, "lima");
+    setString(T_MSG::NATO_M, "mike");
+    setString(T_MSG::NATO_N, "november");
+    setString(T_MSG::NATO_O, "oscar");
+    setString(T_MSG::NATO_P, "papa");
+    setString(T_MSG::NATO_Q, "quebec");
+    setString(T_MSG::NATO_R, "romeo");
+    setString(T_MSG::NATO_S, "sierra");
+    setString(T_MSG::NATO_T, "tango");
+    setString(T_MSG::NATO_U, "uniform");
+    setString(T_MSG::NATO_V, "victor");
+    setString(T_MSG::NATO_W, "whiskey");
+    setString(T_MSG::NATO_X, "x-ray");
+    setString(T_MSG::NATO_Y, "yankee");
+    setString(T_MSG::NATO_Z, "zulu");
+    setString(T_MSG::NO_ERROR_FOUND, "No error found");
+
 }

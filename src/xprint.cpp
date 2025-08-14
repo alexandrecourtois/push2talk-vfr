@@ -182,6 +182,11 @@ std::string X_OUTPUT::xprint(MSG_STYLE style, std::string msg, std::string ext) 
         oss << BLUE_BOLD << "K " << RESET << BG_BLUE_BOLD << BLACK << msg << RESET << std::endl;
         break;
 
+    case MSG_STYLE::SUCCESS:
+        oss << GREEN_BOLD << "§ " << msg <<  RESET << std::endl;
+
+        break;
+
     case MSG_STYLE::STATUS_ON:
         oss << GREEN_BOLD << "S " <<  msg << ": " << RESET << BG_GREEN_BOLD << BLACK;
 

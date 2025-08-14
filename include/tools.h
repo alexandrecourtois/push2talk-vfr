@@ -18,7 +18,9 @@
 
 #pragma once
 
+#include "nlohmann/json.hpp"
 #include <pch.h>
+#include <unordered_set>
 #include <weather.h>
 
 class TOOLBOX {
@@ -26,16 +28,36 @@ private:
     TOOLBOX() = default;
 
 public:
-    struct JSON_Integrity {
-        struct Result {
-            bool is_ok;
-            std::vector<std::string> errors;
-        };
+    class JSON_Validator {
+        private:
+            static bool __isString(const nlohmann::json& json, const char* key);
+            static bool __isObjectArray(const nlohmann::json& json, const char* key);
 
-        static bool isString(const nlohmann::json& json, const std::string& key);
-        static bool isObjectArray(const nlohmann::json& json, const std::string& key);
-        static Result verify(const std::string& path);
-        static void printResultOnErrors(const Result& result);
+        public:
+            struct Result {
+                bool is_ok;
+                unsigned int branch_explored;
+                std::vector<std::string> errors;
+                std::vector<std::string> warnings;
+
+                static void printErrors(const Result& result);
+                static void printWarnings(const Result& result);
+                static void merge(TOOLBOX::JSON_Validator::Result& dst, const TOOLBOX::JSON_Validator::Result& src);
+            };
+
+            class Dialog {
+                private:
+                    static std::string __join_path(const std::string& a, const std::string& b);
+                    static std::string __ctx(const std::string& entryPoint, const std::string& subpath = "", std::optional<size_t> index = std::nullopt);
+                    static void __add_error(Result& r, const std::string& context, const std::string& message, const std::string& suggestion = "");
+                    static void __add_warning(Result& r, const std::string& context, const std::string& message, const std::string& suggestion = "");
+
+                public:
+                    static Result verify(const nlohmann::json& json,
+                        const std::string& entryPoint = ">ROOT",
+                        const std::string& path = "",
+                        std::unordered_set<std::string>* history_ptr = nullptr);
+            };
     };
 
     static std::string removeQuotes(std::string str);
@@ -63,4 +85,9 @@ public:
     static std::string trim(const std::string& s);
     static std::string toLower(const std::string& s);
     static void wait(unsigned int seconds);
+    static std::string toICAO(char c);
+    static std::string tailnumToICAO(const std::string& tailnum_str);
+    static std::string toConsole(std::string& str);
+    static std::string toTTS(std::string &str);
+    static bool isUpperCase(const std::string& str);
 };

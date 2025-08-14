@@ -128,13 +128,23 @@ bool SESSION::__process_args(int argc, char** argv) {
             SESSION::verbose = true;
         } else if (arg == "--check-responses") {
             if (i < argc) {
-                auto json_integrity = TOOLBOX::JSON_Integrity::verify(std::string(argv[i+1]));
+                auto json_integrity = TOOLBOX::JSON_Validator::Dialog::verify(TOOLBOX::loadJSON(std::string(argv[i+1])));
 
-                if (!json_integrity.is_ok)
-                    TOOLBOX::JSON_Integrity::printResultOnErrors(json_integrity);
+                if (!json_integrity.is_ok) {
+                    TOOLBOX::JSON_Validator::Result::printWarnings(json_integrity);
+                    TOOLBOX::JSON_Validator::Result::printErrors(json_integrity);
+                } else {
+                    TOOLBOX::JSON_Validator::Result::printWarnings(json_integrity);
+                    X_OUTPUT::xprint(MSG_STYLE::SUCCESS, std::string(argv[i+1]) + ": " + lang(T_MSG::NO_ERROR_FOUND));
+                }
 
                 X_INPUT::enableInput();
                 exit(0);
+            }
+        } else if (arg == "--check-airports") {
+            if (i < argc) {
+                X_INPUT::enableInput();
+                exit(0);                
             }
         }
         // Traitement des options courtes avec "-"
@@ -291,9 +301,6 @@ void SESSION::softShutdown() {
         delete SESSION::client_monitor;
     else
         delete SESSION::server_monitor;
-
-    if (!SESSION::no_audio)
-        AUDIO::free();
 
     SDL_Quit();
     X_INPUT::enableInput();

@@ -12,7 +12,9 @@
         "type": "AFIS",
         "opening": 9,
         "closing": 18,
-        "lang": "fr_FR"
+        "lang": "fr_FR",
+        "tts": "fr_FR-upmc-medium",
+        "controller": "jessica"
     },
     "LFOT": {
         "latitude": 47.4347,
@@ -27,6 +29,8 @@
         "type": "AFIS",
         "opening": 9,
         "closing": 18,
-        "lang": "fr_FR"
+        "lang": "fr_FR",
+        "tts": "fr_FR-upmc-medium",
+        "controller": "pierre"
     }
 }

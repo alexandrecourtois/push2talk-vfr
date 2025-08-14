@@ -97,6 +97,8 @@ void AIRPORTS::updateCurrentAirport() {
         __current_airport.sourceFile = __airports[__current_airport.ICAO]["source"].get<std::string>();
         __current_airport.type = __airports[__current_airport.ICAO]["type"].get<std::string>();
         __current_airport.lang = __airports[__current_airport.ICAO]["lang"].get<std::string>();
+        __current_airport.tts = __airports[__current_airport.ICAO]["tts"].get<std::string>();
+        __current_airport.controller = __airports[__current_airport.ICAO]["controller"].get<std::string>();
 
         Req airport_update_rq;
         airport_update_rq.type = Request::UPD_AIRPORT;

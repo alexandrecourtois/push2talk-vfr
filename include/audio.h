@@ -19,6 +19,7 @@
 #pragma once
 
 #include <pch.h>
+#include <speaker.h>
 
 class AUDIO {
 private:
@@ -32,24 +33,20 @@ private:
     static std::string                          __output_device_name;
     static int                                  __sample_rate;
     static std::map<std::string, std::string>   __phrases;
+    static bool                                 __isSelectedDeviceOpen;
 
     AUDIO() = default;
 
-    static void __init_phrs(const std::string& phrasePath);
-    static void __load_audio(const std::string& audioPath);
     static void __play(const std::vector<std::string>& files, int channel = CHANNEL_RANDOM);
     static int  __play(const std::string& file, int channel = CHANNEL_RANDOM, bool loop = false);
     static int  __play(Mix_Chunk* src, int channel = CHANNEL_RANDOM, bool loop = false);
-    static void __play_tailnum();
     static void __play_radiostart();
     static void __play_radiostop();
-    static void __play_radiocom(const std::vector<std::string>& files);
+//    static void __play_radiocom(const std::vector<std::string>& files);
+    static void __play_radiocom(const std::string& str);
     static void __play_silence(unsigned int msec);
-    static void __audio_callback(void* userdata, Uint8* stream, int len);
     static int  __get_audio_duration(Mix_Chunk* sound);
-    static Mix_Chunk* __concat_audio(const std::vector<std::string>& audio, bool isFromFiles, int trim = 0);
-
-    static std::vector<std::string> __phrase_to_waves(const std::string& phrase);
+    static void __audio_callback(void* userdata, Uint8* stream, int len);
 
 public:
     enum class Type {
@@ -72,11 +69,13 @@ public:
     static void init(const std::string& audioPath, const std::string& phrasePath);
     static void free();
     static void selectDevice(Device deviceType);
+    static void openSelectedDevice(int frequency);
 
     static void startRecording();
     static void stopRecording();
 
-    static void play(Type type, const std::vector<std::string>& files = std::vector<std::string>());
+    static void play(Type type);
+    static void play(const Speaker::Controller& ctrl, const std::string& str);
 
     static bool isRecording();
 

@@ -19,24 +19,7 @@
 #include <callbacks.h>
 #include <session.h>
 #include <airport.h>
-
-std::string CALLBACKS::__get_visibility_AUDIO() {
-    int v;
-
-    AIRPORTS::getCurrentAirport().updateWeather();
-
-    SESSION::dataframe.acquire([&]() {
-        v = static_cast<int>(SESSION::dataframe.infreq_visibility);
-    });
-
-    if (v < 1500)
-        return std::to_string(1500);
-
-    if (v < 5000)
-        return std::to_string(5000);
-
-    return std::to_string(5001);
-}
+#include <string>
 
 std::string CALLBACKS::__get_visibility_TEXT() {
     int v;
@@ -48,12 +31,12 @@ std::string CALLBACKS::__get_visibility_TEXT() {
     });
 
     if (v < 1500)
-        return std::string("< 1500m");
+        return std::string("inférieure à 1500 mètres");
 
     if (v < 5000)
-        return std::string("< 5000m");
+        return std::string("inférieure à 5 kilomètres");
 
-    return std::string("> 5000m");
+    return std::string("supérieure à 5 kilomètres");
 }
 
 std::string CALLBACKS::__get_qnh() {
@@ -62,7 +45,10 @@ std::string CALLBACKS::__get_qnh() {
     AIRPORTS::getCurrentAirport().updateWeather();
 
     SESSION::dataframe.acquire([&]() {
-        str = std::to_string(static_cast<int>(std::round(SESSION::dataframe.infreq_qnh / 100.0f)));
+        if (!SESSION::is_xp11)
+            str = std::to_string(static_cast<int>(std::round(SESSION::dataframe.infreq_qnh / 100.0f)));
+        else
+            str = std::to_string(static_cast<int>(std::round(SESSION::dataframe.infreq_qnh)));
     });
 
     return str;
@@ -117,14 +103,11 @@ std::string CALLBACKS::__get_tailnum() {
 }
 
 void CALLBACKS::__init() {
-    __callbacks_audio["VISIBILITY"]   = __get_visibility_AUDIO;
-    __callbacks_audio["QNH"]          = __get_qnh;
-    __callbacks_audio["WINDSPEED"]    = __get_windspeed;
-    __callbacks_audio["WINDDIR"]      = __get_winddir;
-    __callbacks_audio["RUNWAY"]       = __get_runway;
-    __callbacks_audio["HOLDPOINT"]    = __get_holdpoint;
-
-    __callbacks_text = __callbacks_audio;
+    __callbacks_text["QNH"]          = __get_qnh;
+    __callbacks_text["WINDSPEED"]    = __get_windspeed;
+    __callbacks_text["WINDDIR"]      = __get_winddir;
+    __callbacks_text["RUNWAY"]       = __get_runway;
+    __callbacks_text["HOLDPOINT"]    = __get_holdpoint;
     __callbacks_text["VISIBILITY"]    = __get_visibility_TEXT;
     __callbacks_text["TAILNUM"]       = __get_tailnum;
 }

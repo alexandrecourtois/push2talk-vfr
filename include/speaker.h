@@ -18,9 +18,11 @@
 
 #pragma once
 
+#include "piper.h"
 #include <vosk_api.h>
 #include <airport.h>
 #include <pch.h>
+#include <piper.h>
 
 class Speaker {
 public:
@@ -34,6 +36,8 @@ public:
         std::string     path;
         std::string     vmodel;
         VoskRecognizer* vrec;
+        piper_synthesizer *synth;
+        piper_synthesize_options synth_cfg;
     };
 
 private:

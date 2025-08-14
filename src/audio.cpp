@@ -16,7 +16,12 @@
  *                                                                                               *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <cstring>
+#include "SDL2/SDL_audio.h"
+#include "SDL2/SDL_mixer.h"
+#include "SDL2/SDL_stdinc.h"
+#include "piper.h"
+#include "speaker.h"
+#include <cstdint>
 #include <msg.h>
 #include <audio.h>
 #include <string>
@@ -26,6 +31,7 @@
 #include <radio.h>
 #include <callbacks.h>
 #include <lang.h>
+#include <sox.h>
 
 std::map<std::string, Mix_Chunk*>   AUDIO::__WAV_files;
 std::map<std::string, int>          AUDIO::__WAV_durations;
@@ -37,6 +43,7 @@ int                                 AUDIO::__sample_rate = 16000;
 std::map<std::string, std::string>  AUDIO::__phrases;
 std::string                         AUDIO::__input_device_name;
 std::string                         AUDIO::__output_device_name;
+bool                                AUDIO::__isSelectedDeviceOpen = false;
 
 const std::string& AUDIO::getInputDeviceName() {
     return __input_device_name;
@@ -46,254 +53,14 @@ const std::string& AUDIO::getOutputDeviceName() {
     return __output_device_name;
 }
 
-void AUDIO::__init_phrs(const std::string& phrasePath) {
-    X_OUTPUT::xprint(MSG_STYLE::INIT, lang(T_MSG::LOADING_PHRASES), "phrases.cfg");
-
-    std::ifstream file(phrasePath);
-
-    if (!file.is_open()) {
-        throw std::runtime_error(lang(T_MSG::UNABLE_TO_OPEN_FILE));
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-        // Supprimer les espaces en début et fin de ligne
-        line.erase(0, line.find_first_not_of(" \t"));
-        line.erase(line.find_last_not_of(" \t") + 1);
-
-        // Ignorer les lignes vides ou les commentaires
-        if (line.empty() || line[0] == '#') continue;
-
-        // Trouver la position du caractère '='
-        size_t pos = line.find('=');
-        if (pos == std::string::npos) {
-            throw std::runtime_error(lang(T_MSG::MISFORMATTED_LINE) + line);
-        }
-
-        // Séparer la clé (à gauche de '=') et la valeur (à droite de '=')
-        std::string key = line.substr(0, pos);
-        std::string value = line.substr(pos + 1);
-
-        // Supprimer les espaces autour de la clé et de la valeur
-        key.erase(0, key.find_first_not_of(" \t"));
-        key.erase(key.find_last_not_of(" \t") + 1);
-        value.erase(0, value.find_first_not_of(" \t"));
-        value.erase(value.find_last_not_of(" \t") + 1);
-
-        // Ajouter dans la map
-        __phrases[key] = value;
-    }
-
-    X_OUTPUT::xprint(MSG_STYLE::DONE);
-}
-
-void AUDIO::__load_audio(const std::string& audioPath) {
-    // Étape 1 : Compter le nombre total de fichiers .wav
-    int totalFiles = 0;
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(audioPath)) {
-        if (entry.is_regular_file() && entry.path().extension() == ".wav") {
-            totalFiles++;
-        }
-    }
-
-    // Vérifie s'il y a des fichiers à charger
-    if (totalFiles == 0) {
-        X_OUTPUT::xprint(MSG_STYLE::M_ERROR, lang(T_MSG::NO_WAV_FILES_IN_DIRECTORY));
-        exit(1);
-    }
-
-    // Étape 2 : Charger les fichiers et afficher la barre de progression
-    int loadedFiles = 0;
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(audioPath)) {
-        if (entry.is_regular_file() && entry.path().extension() == ".wav") {
-            std::string filename = entry.path().stem().string() + entry.path().extension().string();
-            Mix_Chunk* chunk = Mix_LoadWAV(entry.path().string().c_str());
-            if (chunk != nullptr) {
-                __WAV_files[filename] = chunk;
-            } else {
-                X_OUTPUT::xprint(MSG_STYLE::M_ERROR, lang(T_MSG::LOADING_ERROR) + " ", entry.path().string());
-            }
-
-            // Mise à jour de la barre de progression
-            loadedFiles++;
-            TOOLBOX::displayProgressBar(lang(T_MSG::LOADING_AUDIO_FILES), loadedFiles, totalFiles);
-        }
-    }
-
-    // Terminer la barre de progression à 100 %
-    TOOLBOX::displayProgressBar(lang(T_MSG::LOADING_AUDIO_FILES), totalFiles, totalFiles);
-    std::cout << CLEAN_LINE;
-    X_OUTPUT::xprint(MSG_STYLE::INIT, lang(T_MSG::LOADING_AUDIO_FILES));
-    X_OUTPUT::xprint(MSG_STYLE::DONE, std::to_string(totalFiles) + " " + lang(T_MSG::FILES));
-}
-
-void AUDIO::__play_tailnum() {
-    std::vector<std::string> tailnum_files;
-
-    for(unsigned int i = 0; i < SESSION::aircraft.tailnum.size(); ++i) {
-        if ((SESSION::aircraft.tailnum[i] >= 'A') && (SESSION::aircraft.tailnum[i] <= 'Z')) {
-            tailnum_files.push_back(std::string(1, std::tolower(SESSION::aircraft.tailnum[i])) + ".wav");
-        }
-
-        if (i == 0)
-            i = SESSION::aircraft.tailnum.size() - 3;
-    }
-
-    //__play(tailnum_files, CHANNEL_RADIO_COM);
-    __play(__concat_audio(tailnum_files, true, -30000), CHANNEL_RADIO_COM);
-}
-
-int AUDIO::__play(const std::string &filename, int channel, bool loop) {
-    if (__WAV_files.find(filename) != __WAV_files.end()) {
-        Mix_Chunk* sound = __WAV_files[filename];
-
-        if (int ch = Mix_PlayChannel(channel, sound, loop ? -1 : 0) == -1) {
-            X_OUTPUT::xprint(MSG_STYLE::M_ERROR, lang(T_MSG::UNABLE_TO_PLAY) + " " + filename);
-        } else {
-            if (!loop)
-                while(int p = Mix_Playing(channel) > 0) {
-                    SDL_Delay(100);
-                }
-
-            return ch;
-        }
-    }
-
-    return -1;
-}
-
-void AUDIO::__play(const std::vector<std::string>& fileNames, int channel) {
-    for (/*const auto&*/ std::string fileName : fileNames) {
-        auto it = __WAV_files.find(fileName);
-        if (it != __WAV_files.end()) {
-            __play(fileName, channel);
-        } else {
-            //std::cerr << "Fichier non trouvé dans la map: " << fileName << std::endl;
-            X_OUTPUT::xprint(MSG_STYLE::WARNING, lang(T_MSG::MISSING_FILE), fileName);
-        }
-    }
-}
-
-int AUDIO::__play(Mix_Chunk* src, int channel, bool loop) {
-    int ch = Mix_PlayChannel(channel, src, loop ? -1 : 0);
-
-    if (!loop)
-        while(int p = Mix_Playing(channel) > 0) {
-            SDL_Delay(100);
-        }
-
-    return ch;
-}
-
-void AUDIO::__play_silence(unsigned int msec) {
-    SDL_Delay(msec);
-}
-
-Mix_Chunk* AUDIO::__concat_audio(const std::vector<std::string>& audio, bool isFromFiles, int trim) {
-    Uint32 length = 0;
-    std::vector<std::string> waves;
-
-    if (!isFromFiles) {
-        for(std::string item: audio) {
-            std::vector<std::string> v = __phrase_to_waves(item);
-            waves.insert(waves.end(), v.begin(), v.end());
-        }
-    } else {
-        waves = audio;
-    }
-
-    for(std::string file: waves) {
-        auto it = __WAV_files.find(file);
-
-        if (it != __WAV_files.end()) {
-            length += __WAV_files[file]->alen + trim;
-        }
-    }
-
-    std::vector<Uint8> buffer(length);
-    length = 0;
-
-    for(std::string file: waves) {
-        std::memcpy(buffer.data() + length, __WAV_files[file]->abuf, __WAV_files[file]->alen + trim);
-        length += __WAV_files[file]->alen + trim;
-    }
-
-    Mix_Chunk* chk = new Mix_Chunk;
-    
-    chk->allocated = 1;
-    chk->abuf = new Uint8[buffer.size()];
-    chk->alen = buffer.size();
-    chk->volume = MIX_MAX_VOLUME;
-
-    std::memcpy(chk->abuf, buffer.data(), buffer.size());
-
-    return chk;
-}
-
-void AUDIO::__play_radiocom(const std::vector<std::string> &filenames) {
-    int noise_volume = RADIO::getNoiseVolume();
-
-    Mix_Volume(CHANNEL_RADIO_NOISE, noise_volume);
-    Mix_Volume(CHANNEL_RADIO_COM, RADIO::getSpeakVolume(noise_volume));
-    __play("bruit.wav", CHANNEL_RADIO_NOISE, true);
-    __play_tailnum();
-    __play_silence(100);
-
-    //for(int i = 0; i < filenames.size(); ++i) 
-    //    __play(__phrase_to_waves(filenames[i]), CHANNEL_RADIO_COM);
-    __play(__concat_audio(filenames, false), CHANNEL_RADIO_COM);
-
-    __play("fin.wav", CHANNEL_RADIO_COM);
-    Mix_HaltChannel(CHANNEL_RADIO_NOISE);
-}
-
 void AUDIO::__play_radiostart() {
-    __play("debut.wav", CHANNEL_RADIO_REC);
-    __play("fond.wav", CHANNEL_RADIO_REC, true);
+    //__play("debut.wav", CHANNEL_RADIO_REC);
+    //__play("fond.wav", CHANNEL_RADIO_REC, true);
 }
 
 void AUDIO::__play_radiostop() {
-    Mix_HaltChannel(CHANNEL_RADIO_REC);
-    __play("fin.wav", CHANNEL_RADIO_REC);
-}
-
-std::vector<std::string> AUDIO::__phrase_to_waves(const std::string& str) {
-    std::vector<std::string> subphrases = TOOLBOX::splitString(__phrases[str], '|');
-    std::string phrase;
-    std::vector<std::string> words;
-    std::vector<std::string> waves;
-
-    if (subphrases.size() > 1) {
-        int retained_index = TOOLBOX::generateRandomNumber(subphrases.size() - 1);
-        phrase = subphrases[retained_index];
-    } else
-        phrase = subphrases[0];
-
-    words = TOOLBOX::splitString(phrase, '&');
-
-    for(unsigned int i = 0; i < words.size(); ++i) {
-        if (words[i][0] == '[' && words[i][words[i].size() - 1] == ']') {
-            std::vector<std::string> tmp_waves = __phrase_to_waves(words[i]);
-            waves.insert(waves.end(), tmp_waves.begin(), tmp_waves.end());
-        } else {
-            std::string value = TOOLBOX::extractBetweenBraces(words[i]);
-
-            if (!value.empty()) {
-                std::vector<std::string> filename = TOOLBOX::splitString(words[i], '.');
-                words[i] = TOOLBOX::removeSubstring(filename[0], "{" + value + "}") + CALLBACKS::getValue(CALLBACKS::AUDIO, value) + "." + filename[1];
-            }
-
-            waves.push_back(words[i]);
-        }
-    }
-
-    return waves;
-}
-
-void AUDIO::__audio_callback(void* userdata, Uint8* stream, int len) {
-    if (isRecording()) {
-        __audio_stream.insert(__audio_stream.end(), stream, stream + len);
-    }
+    //Mix_HaltChannel(CHANNEL_RADIO_REC);
+    //__play("fin.wav", CHANNEL_RADIO_REC);
 }
 
 int AUDIO::__get_audio_duration(Mix_Chunk* sound) {
@@ -310,13 +77,17 @@ int AUDIO::__get_audio_duration(Mix_Chunk* sound) {
 void AUDIO::init(const std::string& audioPath, const std::string& phrasePath) {
     if (SDL_Init(SDL_INIT_AUDIO) < 0) {
         X_OUTPUT::xprint(MSG_STYLE::M_ERROR, lang(T_MSG::ERROR_WHILE_INITIALIZING_SDL_AUDIO));
+        SESSION::no_audio = true;
     }
 
     selectDevice(AUDIO::Device::AUDIO_INPUT);
     selectDevice(AUDIO::Device::AUDIO_OUTPUT);
+}
 
-    __load_audio(audioPath);
-    __init_phrs(phrasePath);
+void AUDIO::__audio_callback(void* userdata, Uint8* stream, int len) {
+    if (isRecording()) {
+        __audio_stream.insert(__audio_stream.end(), stream, stream + len);
+    }
 }
 
 void AUDIO::selectDevice(AUDIO::Device deviceType) {
@@ -380,7 +151,7 @@ void AUDIO::selectDevice(AUDIO::Device deviceType) {
         desiredSpec.format = AUDIO_S16SYS;     // Format de l'échantillon (32 bits float)
         desiredSpec.channels = 1;           // Nombre de canaux (stéréo)
         desiredSpec.samples = 4096;         // Taille de la mémoire tampon
-        desiredSpec.callback = __audio_callback;
+        desiredSpec.callback = __audio_callback;//__audio_callback;
 
         // Structure pour stocker les spécifications obtenues
         SDL_AudioSpec obtainedSpec;
@@ -396,15 +167,7 @@ void AUDIO::selectDevice(AUDIO::Device deviceType) {
                 AUDIO::__input_device_name = std::string(selectedDeviceName);
             }
         } else {
-            Mix_CloseAudio();
-            __output_device_id = Mix_OpenAudioDevice(48000, MIX_DEFAULT_FORMAT, 2, 2048, selectedDeviceName,SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE);
-            Mix_AllocateChannels(32);
-
-            if (__output_device_id < 0 ) {
-                X_OUTPUT::xprint(MSG_STYLE::M_ERROR, lang(T_MSG::AUDIO_DEVICE_ERROR) + ": " + std::string(Mix_GetError()));
-            } else {
                 AUDIO::__output_device_name = std::string(selectedDeviceName);
-            }
         }
     }
 }
@@ -422,22 +185,14 @@ void AUDIO::stopRecording() {
     __audio_stream.insert(__audio_stream.end(), silence, 0);
 }
 
-void AUDIO::play(Type type, const std::vector<std::string>& files) {
+void AUDIO::play(Type type) {
     switch(type) {
-    case Type::RADIOCOM:
-        __play_radiocom(files);
-        break;
-
     case Type::RADIOSTART:
         __play_radiostart();
         break;
 
     case Type::RADIOSTOP:
         __play_radiostop();
-        break;
-
-    case Type::TAILNUM:
-        __play_tailnum();
         break;
 
     default:
@@ -453,9 +208,172 @@ const std::vector<unsigned char>& AUDIO::getAudioStream() {
     return __audio_stream;
 }
 
-void AUDIO::free() {
-    for(auto it = __WAV_files.begin(); it != __WAV_files.end(); ++it)
-        Mix_FreeChunk(it->second);
+std::vector<float> apply_sox_fx_speech(const std::vector<float>& pcm_in, int sr) {
+    std::vector<float> pcm_out;
+    if (pcm_in.empty()) return pcm_out;
 
-    __WAV_files.clear();
+    if (sox_init() != SOX_SUCCESS) {
+        std::cerr << "sox_init failed\n";
+        return pcm_out;
+    }
+
+    // Signal: infos "physiques" (pas d'encodage ici)
+    sox_signalinfo_t sig{};
+    sig.rate      = (sox_rate_t)sr;      // ex. 22050
+    sig.channels  = 1;                   // mono
+    sig.precision = 32;                  // bits par échantillon
+    sig.length    = pcm_in.size();       // nb d'échantillons (mono)
+    // sig.encoding : n'existe pas -> normal
+
+    // Encodage: float32
+    sox_encodinginfo_t enc{};
+    enc.encoding         = SOX_ENCODING_FLOAT;
+    enc.bits_per_sample  = 32;
+    enc.compression      = 0;
+
+    // Input mémoire (float32 LE)
+    sox_format_t* in = sox_open_mem_read(
+        (void*)pcm_in.data(),
+        pcm_in.size() * sizeof(float),
+        &sig, &enc, "f32"    // type "f32" = float32 little-endian brut
+    );
+    if (!in) { sox_quit(); return pcm_out; }
+
+    // Output mémoire (on sur-alloue puis on retaillera après)
+    size_t out_cap_bytes = pcm_in.size() * sizeof(float) * 2; // marge
+    pcm_out.resize(out_cap_bytes / sizeof(float));
+    sox_format_t* out = sox_open_mem_write(
+        (void*)pcm_out.data(),
+        out_cap_bytes,
+        &sig, &enc, "f32", nullptr
+    );
+    if (!out) {
+        sox_close(in);
+        sox_quit();
+        pcm_out.clear();
+        return pcm_out;
+    }
+
+    // Chaîne d'effets
+    sox_effects_chain_t* chain =
+        sox_create_effects_chain(&in->encoding, &out->encoding);
+
+    auto add_effect = [&](const char* name, int argc, const char* argv[]) -> bool {
+        sox_effect_t* e = sox_create_effect(sox_find_effect(name));
+        if (!e) return false;
+        if (sox_effect_options(e, argc, const_cast<char**>(argv)) != SOX_SUCCESS) {
+            free(e); return false;
+        }
+        if (sox_add_effect(chain, e, &in->signal, &out->signal) != SOX_SUCCESS) {
+            free(e); return false;
+        }
+        free(e);
+        return true;
+    };
+
+    // input
+    {
+        sox_effect_t* e = sox_create_effect(sox_find_effect("input"));
+        char* args[] = { (char*)in };
+        if (sox_effect_options(e, 1, args) != SOX_SUCCESS ||
+            sox_add_effect(chain, e, &in->signal, &out->signal) != SOX_SUCCESS) {
+            free(e);
+            sox_delete_effects_chain(chain);
+            sox_close(in); sox_close(out); sox_quit();
+            pcm_out.clear(); return pcm_out;
+        }
+        free(e);
+    }
+
+    // === Ta chaîne d’effets ===
+    const char* sinc_args[]      = { "300-3000" };
+    const char* gain_args[]      = { "-10" };
+    const char* overdrive_args[] = { "5" };
+    const char* highpass_args[]  = { "200" };
+    const char* lowpass_args[]   = { "3000" };
+    const char* contrast_args[]  = { "50" };
+
+    if (!add_effect("sinc", 1, sinc_args) ||
+        !add_effect("gain", 1, gain_args) ||
+        !add_effect("overdrive", 1, overdrive_args) ||
+        !add_effect("highpass", 1, highpass_args) ||
+        !add_effect("lowpass", 1, lowpass_args) ||
+        !add_effect("contrast", 1, contrast_args)) {
+        sox_delete_effects_chain(chain);
+        sox_close(in); sox_close(out); sox_quit();
+        pcm_out.clear(); return pcm_out;
+    }
+
+    // output
+    {
+        sox_effect_t* e = sox_create_effect(sox_find_effect("output"));
+        char* args[] = { (char*)out };
+        if (sox_effect_options(e, 1, args) != SOX_SUCCESS ||
+            sox_add_effect(chain, e, &in->signal, &out->signal) != SOX_SUCCESS) {
+            free(e);
+            sox_delete_effects_chain(chain);
+            sox_close(in); sox_close(out); sox_quit();
+            pcm_out.clear(); return pcm_out;
+        }
+        free(e);
+    }
+
+    // Traiter
+    if (sox_flow_effects(chain, nullptr, nullptr) != SOX_SUCCESS) {
+        sox_delete_effects_chain(chain);
+        sox_close(in); sox_close(out); sox_quit();
+        pcm_out.clear(); return pcm_out;
+    }
+
+    // Retailler à la quantité réellement écrite (octets -> échantillons)
+    size_t written_bytes = out->olength;           // octets écrits en mémoire
+    size_t samples       = written_bytes / sizeof(float);
+    pcm_out.resize(samples);
+
+    // Nettoyage
+    sox_delete_effects_chain(chain);
+    sox_close(in);
+    sox_close(out);
+    sox_quit();
+    return pcm_out;
+}
+
+
+void AUDIO::play(const Speaker::Controller& ctrl, const std::string& str) {
+    piper_synthesize_start(ctrl.synth, str.c_str(), &ctrl.synth_cfg);
+    piper_audio_chunk chunk;
+    std::vector<float> pcm;
+    while (piper_synthesize_next(ctrl.synth, &chunk) != PIPER_DONE) {
+        const float* f = static_cast<const float*>(chunk.samples);
+        pcm.insert(pcm.end(), f, f + chunk.num_samples);
+    }
+    auto pcm_fx = apply_sox_fx_speech(pcm, 22050);
+    if (pcm_fx.empty()) {
+        std::cerr << "SoX processing failed.\n";
+        return;
+    }
+    std::vector<uint8_t> out_bytes;
+    const uint8_t* p = reinterpret_cast<const uint8_t*>(pcm_fx.data());
+    out_bytes.assign(p, p + pcm.size() * sizeof(float));
+    Mix_Chunk chunk_mix{};
+    chunk_mix.allocated = 0;
+    chunk_mix.abuf = out_bytes.data();
+    chunk_mix.alen = static_cast<Uint32>(out_bytes.size());
+    chunk_mix.volume = MIX_MAX_VOLUME;
+    int channel = Mix_PlayChannel(CHANNEL_RADIO_COM, &chunk_mix, 0);
+    while (Mix_Playing(channel) != 0) {
+        SDL_Delay(10);
+    }
+}
+
+void AUDIO::openSelectedDevice(int frequency) {
+    Mix_CloseAudio();
+    
+    if (Mix_OpenAudioDevice(frequency, AUDIO_F32SYS, 1, 1024, AUDIO::__output_device_name.c_str(), 0) < 0) {
+        X_OUTPUT::xprint(MSG_STYLE::M_ERROR, lang(T_MSG::AUDIO_DEVICE_ERROR) + ": " + std::string(Mix_GetError()));
+        SESSION::no_audio = true;
+    } else {
+        Mix_AllocateChannels(32);
+        X_OUTPUT::xprint(MSG_STYLE::INFO, lang(T_MSG::AUDIO_DEVICE_FREQ) + ": " + std::to_string(frequency) + "Hz");
+    }
 }

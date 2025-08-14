@@ -16,6 +16,7 @@
  *                                                                                               *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include "nlohmann/json.hpp"
 #include "vosk_api.h"
 #include <msg.h>
 #include <speaker.h>
@@ -31,6 +32,7 @@
 #include <lang.h>
 #include <interp.h>
 #include <updater.h>
+#include <piper.h>
 
 void Speaker::__init_vosk(const char* path) {
     X_OUTPUT::xprint(MSG_STYLE::INIT, lang(T_MSG::INITIALIZING_VOSK), path);
@@ -189,17 +191,6 @@ Speaker& Speaker::operator=(const Speaker& orig) {
     return *this;
 }
 
-void Speaker::__speak(const std::string& audio) {
-    X_OUTPUT::xprint(MSG_STYLE::BLINK_BEGIN, "Speaking");
-
-    std::vector<std::string> keys = TOOLBOX::splitString(audio, ',');
-
-    AUDIO::play(AUDIO::Type::RADIOCOM, keys);
-
-    X_OUTPUT::xprint(MSG_STYLE::ENDL);
-    X_OUTPUT::xprint(MSG_STYLE::BLINK_END);
-}
-
 Speaker::Controller* Speaker::getController(const std::string &id) {
     if (__controllers.contains(id))
         return &__controllers[id];
@@ -309,8 +300,8 @@ void Speaker::runDialog() {
                                 //std::cout << ctrl->dialog.dump(4) << std::endl;
                                 X_OUTPUT::xprint(MSG_STYLE::XTALK, ctrl->dialog[">MISCOPY"]["phrase"]);
 
-                                if (!SESSION::no_audio)
-                                    this->__speak(ctrl->dialog[">MISCOPY"]["audio"]);
+                                //if (!SESSION::no_audio)
+                                    //this->__speak(ctrl->dialog[">MISCOPY"]["audio"]);
                             }
                             //}
                             //else {
@@ -435,9 +426,9 @@ bool Speaker::__get_readback(const std::string& readback_keywords) {
         } else {
             X_OUTPUT::xprint(MSG_STYLE::XTALK, ctrl->dialog[">MISCOPY"]["phrase"]);
 
-            if (!SESSION::no_audio) {
-                this->__speak(ctrl->dialog[">MISCOPY"]["audio"]);
-            }
+            //if (!SESSION::no_audio) {
+            //    this->__speak(ctrl->dialog[">MISCOPY"]["audio"]);
+            //}
         }
     }
 
@@ -461,13 +452,27 @@ void Speaker::showKeywords() {
     }
 }
 
+std::string removeAnsiCodes(const std::string& input) {
+    static const std::regex ansiPattern("\x1B\\[[0-9;]*[A-Za-z]");
+    return std::regex_replace(input, ansiPattern, "");
+}
+
 void Speaker::__play_node(const nlohmann::json& node) {
     if (node.contains("phrase")) {
-        X_OUTPUT::xprint(MSG_STYLE::XTALK, this->__replace_keys(TOOLBOX::removeQuotes(node["phrase"])));
-    }
+        Controller* ctrl = getController(AIRPORTS::getCurrentAirport().ICAO);
 
-    if (node.contains("audio") && !SESSION::no_audio) {
-        this->__speak(TOOLBOX::removeQuotes(node["audio"]));
+        std::string str = this->__replace_keys(TOOLBOX::removeQuotes(node["phrase"]));
+        X_OUTPUT::xprint(MSG_STYLE::XTALK, TOOLBOX::toConsole(str));
+
+        if (!SESSION::no_audio) {
+            X_OUTPUT::xprint(MSG_STYLE::BLINK_BEGIN, "Speaking");
+            str = removeAnsiCodes(this->__replace_keys(TOOLBOX::removeQuotes(node["phrase"])));
+            std::string tailnum = str.substr(0, 6);
+            str.erase(0, 6);
+            AUDIO::play(*ctrl, TOOLBOX::tailnumToICAO(tailnum) + "." + TOOLBOX::toTTS(str));
+            X_OUTPUT::xprint(MSG_STYLE::ENDL);
+            X_OUTPUT::xprint(MSG_STYLE::BLINK_END);
+        }        
     }
 }
 
@@ -481,19 +486,28 @@ void Speaker::setupController(const AIRPORTS::Airport &airport) {
         ctrl.call_id = " " + airport.type;
         ctrl.call_id.resize(8, ' ');
 
-        auto json_integrity = TOOLBOX::JSON_Integrity::verify(airport.sourceFile);
+        //auto json_integrity = TOOLBOX::JSON_Integrity::verify_RESPONSES(airport.sourceFile);
 
-        if (!json_integrity.is_ok) {
-            TOOLBOX::JSON_Integrity::printResultOnErrors(json_integrity);
-            SESSION::hardShutdown();
-            return;
-        }
+//        if (!json_integrity.is_ok) {
+//            TOOLBOX::JSON_Integrity::printResultOnErrors(json_integrity);
+//            SESSION::hardShutdown();
+//            return;
+//        }
 
         ctrl.dialog = TOOLBOX::loadJSON(airport.sourceFile);
         ctrl.curr_node = ">ROOT";
         
         if (!SESSION::no_audio)
             Speaker::__init_ctrl_vrec(ctrl, airport);
+
+        ctrl.synth = piper_create(std::string(airport.tts + ".onnx").c_str(), std::string(airport.tts + ".onnx.json").c_str(), "espeak-ng-data");
+        nlohmann::json synth_cfg = TOOLBOX::loadJSON(airport.tts + ".onnx.json");
+        AUDIO::openSelectedDevice(synth_cfg["audio"]["sample_rate"].get<int>());
+        ctrl.synth_cfg = piper_default_synthesize_options(ctrl.synth);
+        
+        //ctrl.synth_cfg.length_scale = 1.0f;
+        //ctrl.synth_cfg.noise_scale = 0.667f;
+        //ctrl.synth_cfg.noise_w_scale = 0.8f;
 
         __controllers[airport.ICAO] = ctrl;
 

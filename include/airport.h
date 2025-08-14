@@ -44,6 +44,8 @@ public:
         std::string sourceFile;
         std::string type;
         std::string lang;
+        std::string tts;
+        std::string controller;
 
         void updateWeather();
     };
